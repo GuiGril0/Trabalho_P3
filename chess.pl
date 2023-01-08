@@ -48,7 +48,9 @@ iniciar :- (initial_position(cell(X, Y),P), \+(posicao_actual(cell(X, Y), P)),
 /* desenhar o tabuleiro do jogo */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-mostrar :- iniciar, desenharTabuleiro(2).
+:- dynamic(n_jogadas/1).
+
+mostrar :- iniciar, desenharTabuleiro(2), asserta(n_jogadas(1)).
 
 desenharTabuleiro(Linha):-
     (Linha=<18,
@@ -100,13 +102,13 @@ ver_Peca(Y,X):-
 % testar validade da jogada (sem conseqquência no jogo)
 pieces_rules([87, 80], [X_actual, Y_actual], [X_next, Y_next], Play) :-
     X_actual = X_next,
-    ((Y is Y_actual - 1, Y_next = Y,
+    ((Y is Y_actual + 1, Y_next = Y,
     ASCII is 64 + X_next, char_code(L, ASCII),
     \+posicao_actual(cell(L, Y_next),_));
     (Y_actual = 2, Y_next = 4,
     ASCII is 64 + X_next, char_code(L, ASCII),
     \+posicao_actual(cell(L, Y_next), _),
-    Z is Y_next - 1, !, \+posicao_actual(cell(L, Z),_))),
+    Z is Y_next + 1, !, \+posicao_actual(cell(L, Z),_))),
     Play is 0.
 
 % realizar a jogada
@@ -278,12 +280,53 @@ pieces_rules([C,72], [X_actual, Y_actual], [X_next, Y_next], Play) :-
 /* leitura de inputs */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+gets(F) :-
+    seeing(I), %save current stream
+    see(F),
+    get_file_content([]),
+    seen,
+    see(I).
 
+check_end(C, L) :- C = -1, !, get_play(L).
+
+get_file_content(L) :- 
+    get0(C),
+    (check_end(C, L);
+    (append(L , [C], LR),
+    %write(LR),
+    %nl,
+    get_file_content(LR))).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /* realizar as jogadas dadas no input */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+check_enter(C, L) :- C = 10, !. %analyze_play(L).
+
+check_space(C, L) :- C = 32, !. %analyze_play(L).
+
+get_uppercase_char(C, UC) :-
+    (C > 96, C < 123),
+    UC is C - 32.
+
+get_number(C, N) :-
+    (C > 48, C < 57),
+    N is C - 48.
+
+get_play([]).
+get_play(L) :- get_play(L, []).
+get_play([H|T], L) :- 
+    (check_space(H, L);
+    check_enter(H, L));
+    (((get_uppercase_char(H, C); get_number(H, C)); C is H), 
+    append(L, [C], LR),
+    write(LR),
+    nl),
+    get_play(T, LR).
 
 
+analyze_play(J) :- 
+    n_jogadas(X), retractall(n_jogadas(_)),
+    NJ is X + 1, asserta(n_jogadas(NJ)), 
+    Y is X mod 2, ((Y = 0, ); (Y = 1,))
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /* funções auxiliares */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
