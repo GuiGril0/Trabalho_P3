@@ -47,7 +47,7 @@ init :- (initial_position(X, Y,P), \+(actual_position(X, Y, P)),
 
 :- dynamic(n_jogadas/1).
 
-start :- init, draw_board(2), asserta(n_jogadas(1)), gets, mostrar.
+start :- init, draw_board(2), asserta(n_jogadas(1)), command, mostrar.
 
 mostrar :- draw_board(2).
 
@@ -250,13 +250,12 @@ pieces_rules([C,78], [X_actual, Y_actual], [X_next, Y_next], Play) :-
     var(X_next),
     (
     (X is X_actual + 1, X_next = X, (Y is Y_actual + 2; Y is Y_actual - 2), Y_next = Y);
-    (X is X_actual + 2, X_next = X, (Y is Y_actual + 1; Y is Y_actual - 1), Y_next = Y);
     (X is X_actual - 1, X_next = X, (Y is Y_actual + 2; Y is Y_actual - 2), Y_next = Y);
+    (X is X_actual + 2, X_next = X, (Y is Y_actual + 1; Y is Y_actual - 1), Y_next = Y);
     (X is X_actual - 2, X_next = X, (Y is Y_actual + 1; Y is Y_actual - 1), Y_next = Y)
     ), X_next > 0, X_next < 9, Y_next > 0, Y_next < 9
     );
-    (
-    \+var(X_next),
+    (\+var(X_next),
     X_dif is abs(X_actual - X_next), Y_dif is abs(Y_actual - Y_next),
     ((X_dif = 1, Y_dif = 2); 
     (X_dif = 2; Y_dif = 1)))
@@ -272,36 +271,31 @@ pieces_rules([C,78], [X_actual, Y_actual], [X_next, Y_next], Play) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- initialization(start).
 
-gets :- get0(C),check(C,[]).
+command :- argument_list(As), define_format(As).
+
+check_algebrica('algebrica').
+
+check_state('estado') :- write('acao: estado'), nl.
+check_mostrar('mostrar') :- draw_board(2).
+
+define_format([A,B,C|T]) :- check_algebrica(A), read_input(C), (check_state(B); check_mostrar(B)).
+
+read_input(I) :- (file_exists(I), see(I)), gets.
+
+gets :- gets([]), !.
 gets(L) :- get0(C), check(C,L).
 
-check(-1, L) :- name(STR,L),nl.
-check(10,L) :- get_play(L), gets([]).
-check(32,L) :- get_play(L), gets([]).
-check(C,L) :- append(L,[C],X), gets(X).
-
-check_end(-1,L):- !.
-get_content(L) :- get0(C), check(C,L).
+check(32,L) :- get_play(L),  gets([]).
+check(10,L) :- get_play(L),  gets([]).
+check(-1, L):- !.
+check(C,L) :- append(L,[C],X),!, gets(X).
    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /* realizar as jogadas dadas no input */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-check(C,L) :- write(L), nl,append(L,[C],NL), (check_enter(C,L);check_space(C,L)).
-
-check_enter(10,L) :- get_play(L),get_content([]).
-
-check_space(32,L) :- get_play(L),get_content([]).
-
-get_uppercase_char(C, UC) :-
-    (C > 96, C < 123),
-    UC is C - 32.
-
-get_number(C, N) :-
-    (C > 48, C < 57),
-    N is C - 48.
 
 get_play([]).
-get_play(L) :-
+get_play(L) :- 
     analyze_play(L).
 
 analyze_play([A,B]) :- 
@@ -313,8 +307,17 @@ analyze_play([A,B]) :-
     ASCII is A-32, char_code(LETRA,ASCII),
     retract(actual_position(X2,Y,P)),asserta(actual_position(LETRA,BT,P)).
 
+analyze_play([79,45,79]) :-   
+    n_jogadas(X), NP is X+1, retractall(n_jogadas(_)), asserta(n_jogadas(NP)), %Castle play
+    Y1 is X mod 2, ((Y1=1, COLOR=87); (Y1=0, COLOR=66)),
+    name(PK,[COLOR,75]), name(PR,[COLOR,82]),
+    (actual_position(X2K,YK,PK), char_code(X2K, XCK), XTK is XCK-64),
+    (actual_position(X2R, YR, PR), char_code(X2R, XCR), XTR is XCR-64),
+    (retract(actual_position(X2K, YK, PK)), asserta(actual_position(X2R, YR, PK))),
+    (retract(actual_position(X2R, YR, PR)), asserta(actual_position(X2K, YK, PR))).
+
 analyze_play([A,B,C]) :-
-    BT is B-96, CT is C-48, n_jogadas(X), NP is X+1, retractall(n_jogadas(_)), asserta(n_jogadas(NP)),
+    BT is B-96, CT is C-48, n_jogadas(X), NP is X+1, retract(n_jogadas(_)), asserta(n_jogadas(NP)),
     Y1 is X mod 2, ((Y1=1, COLOR = 87); (Y1 = 0, COLOR = 66)),
     name(P,[COLOR,A]),
     (actual_position(X2,Y,P), char_code(X2,XC), XT is XC-64),
@@ -323,15 +326,15 @@ analyze_play([A,B,C]) :-
     retract(actual_position(X2, Y, P)), asserta(actual_position(LETRA, CT, P)).
 
 analyze_play([A,B,C,D]) :-
-    n_jogadas(X), NP is X+1, retractall(n_jogadas(_)), asserta(n_jogadas(NP)),
+    ((A > 64, A < 91), B = 120, CT is C-96, DT is D-48, n_jogadas(X), NP is X+1, retractall(n_jogadas(_)), asserta(n_jogadas(NP)),
     Y1 is X mod 2, ((Y1=1, COLOR = 87); (Y1=0, COLOR=66)),
-    ((A > 64, A < 91), B = 120, CT is C-96, DT is D-48,
     name(P,[COLOR,A]),
     (actual_position(X2, Y, P), char_code(X2, XC), XT is XC-64),
     (pieces_rules([COLOR,A],[XT,Y],[CT,DT],1),!),
     ASCII is C-32, char_code(LETRA, ASCII),
     retract(actual_position(X2, Y, P)), asserta(actual_position(LETRA, DT, P)));
-    ((A > 64, A < 91), \+(B = 120), BT is B-96, CT is C-96, DT is D-96,
+    ((A > 64, A < 91), \+(B = 120), BT is B-96, CT is C-96, DT is D-96, n_jogadas(X), NP is X+1, retractall(n_jogadas(_)), asserta(n_jogadas(NP)),
+    Y1 is X mod 2, ((Y1=1, COLOR = 87); (Y1=0, COLOR=66)),
     name(P,[COLOR,A]),
     (actual_position(BT, Y, P), char_code(BT, BC), B2 is BC-64),
     (pieces_rules([COLOR,A],[BT,Y],[CT,DT],0),!),
@@ -346,7 +349,6 @@ analyze_play([A,B,C,D]) :-
 
 analyze_play([A,B,C,D,E]) :-
     analyze_play([A,B,C,D]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /* funções auxiliares */
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
